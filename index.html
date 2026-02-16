@@ -392,7 +392,7 @@ function render() {
   // Math breakdown
   html += `<div class="step-math">
     <strong>The math:</strong> Your paycheck is ${$(take.biweekly)} every 2 weeks.<br>
-    After car (${$(carPer)}) + spending (${$(spendPer)}), you have <strong>${$(totalBudget)}</strong> for loans.<br>
+    After car (${$(carPer)}) + credit card (${$(spendPer)}), you have <strong>${$(totalBudget)}</strong> for loans.<br>
     Auto-pay covers ${$(autoPayPer)}/period. That leaves <strong>${$(manualPer)}</strong> for you to pay manually.
   </div>`;
 
@@ -530,11 +530,11 @@ function render() {
 
   // Settings (always visible, at the bottom)
   html += `<div class="card"><h2>Your Info (edit if anything changes)</h2>
-    <p style="font-size:0.85rem;color:#888;margin-bottom:12px">If you get a raise, start a 401K, or your spending changes, update these numbers and hit "Apply Changes" to recalculate everything.</p>
+    <p style="font-size:0.85rem;color:#888;margin-bottom:12px">If you get a raise, start a 401K, or your credit card bill changes, update these numbers and hit "Apply Changes" to recalculate everything.</p>
     <div class="setting-row"><label>Annual Salary</label><input type="text" id="cfgSalary" value="${CFG.salary}"></div>
     <div class="setting-row"><label>401K % (0 if you don't have one yet)</label><input type="text" id="cfgK401" value="${CFG.k401Pct}"></div>
     <div class="setting-row"><label>Car Payment (monthly)</label><input type="text" id="cfgCar" value="${CFG.carMonthly}"></div>
-    <div class="setting-row"><label>Personal Spending (monthly)</label><input type="text" id="cfgSpend" value="${CFG.spendMonthly}"></div>
+    <div class="setting-row"><label>Credit Card Statement (monthly)</label><input type="text" id="cfgSpend" value="${CFG.spendMonthly}"></div>
     <div class="setting-row"><label>Auto-Pay Amount (monthly)</label><input type="text" id="cfgAutoPay" value="${CFG.autoPayMonthly}"></div>
     <hr style="margin:12px 0;border:none;border-top:1px solid #f0e6e0">
     <p style="font-size:0.8rem;color:#888;margin-bottom:8px">Minimum monthly payments per loan (from MOHELA):</p>`;
