@@ -56,10 +56,39 @@ td:nth-child(2),th:nth-child(2){text-align:left}
 .row-paid{background:#fee2e2!important}
 .row-paid td:nth-child(2){text-decoration:line-through;color:#999}
 
-/* Progress */
-.progress-wrap{margin:10px 0}
-.progress-bar{height:26px;background:#f0e0d8;border-radius:13px;overflow:hidden}
-.progress-fill{height:100%;background:linear-gradient(90deg,#e67e22,#c0392b);transition:width 0.4s;display:flex;align-items:center;justify-content:center;color:#fff;font-size:0.75rem;font-weight:700;min-width:40px}
+/* Progress Ring */
+.progress-section{text-align:center;padding:10px 0}
+.ring-wrap{position:relative;width:180px;height:180px;margin:0 auto 12px}
+.ring-wrap svg{transform:rotate(-90deg)}
+.ring-bg{fill:none;stroke:#f0e0d8;stroke-width:12}
+.ring-fill{fill:none;stroke:url(#ringGrad);stroke-width:12;stroke-linecap:round;transition:stroke-dashoffset 0.8s ease}
+.ring-text{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center}
+.ring-pct{font-size:2.4rem;font-weight:900;color:#c0392b;line-height:1}
+.ring-label{font-size:0.75rem;color:#888;margin-top:2px}
+.milestone-msg{font-size:1.1rem;font-weight:700;margin:8px 0;min-height:1.4em;transition:opacity 0.3s}
+.payments-count{font-size:0.85rem;color:#888}
+
+/* Loans Destroyed */
+.destroyed-section{margin-top:16px;padding-top:14px;border-top:2px solid #f0e6e0}
+.destroyed-title{font-size:0.95rem;font-weight:700;color:#c0392b;margin-bottom:10px}
+.loan-tombstone{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;margin-bottom:8px;border-radius:10px;background:#f0fff0;border:1px solid #a8e6a0}
+.loan-tombstone.alive{background:#fff5f5;border:1px solid #f0d0d0;opacity:0.5}
+.tombstone-name{font-weight:600;font-size:0.85rem}
+.tombstone-status{font-size:0.8rem;font-weight:700;padding:3px 10px;border-radius:20px}
+.tombstone-status.dead{background:#27ae60;color:#fff}
+.tombstone-status.alive{background:#f0d0d0;color:#c0392b}
+
+/* Confetti */
+.confetti-container{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999;overflow:hidden}
+.confetti-piece{position:absolute;width:10px;height:10px;opacity:0;animation:confettiFall 1.5s ease-out forwards}
+@keyframes confettiFall{
+  0%{opacity:1;transform:translateY(0) rotate(0deg) scale(1)}
+  100%{opacity:0;transform:translateY(100vh) rotate(720deg) scale(0.3)}
+}
+@keyframes celebratePulse{
+  0%,100%{transform:scale(1)}
+  50%{transform:scale(1.05)}
+}
 
 /* Settings */
 .settings-toggle{display:block;width:100%;text-align:left;background:none;border:none;font-size:1rem;font-weight:600;color:#c0392b;cursor:pointer;padding:8px 0}
@@ -287,6 +316,52 @@ function downloadICS(schedule) {
   URL.revokeObjectURL(url);
 }
 
+/* ══════════════════ CONFETTI ══════════════════ */
+function launchConfetti() {
+  const container = document.createElement('div');
+  container.className = 'confetti-container';
+  document.body.appendChild(container);
+  const colors = ['#e74c3c','#f39c12','#27ae60','#3498db','#9b59b6','#e91e63','#ff9800','#00bcd4','#ff5722','#8bc34a'];
+  const shapes = ['circle','square','triangle'];
+  for (let i = 0; i < 80; i++) {
+    const piece = document.createElement('div');
+    piece.className = 'confetti-piece';
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const shape = shapes[Math.floor(Math.random() * shapes.length)];
+    const size = 6 + Math.random() * 10;
+    piece.style.left = Math.random() * 100 + '%';
+    piece.style.top = '-10px';
+    piece.style.width = size + 'px';
+    piece.style.height = size + 'px';
+    piece.style.backgroundColor = color;
+    piece.style.animationDelay = Math.random() * 0.6 + 's';
+    piece.style.animationDuration = (1 + Math.random() * 1.5) + 's';
+    if (shape === 'circle') piece.style.borderRadius = '50%';
+    else if (shape === 'triangle') {
+      piece.style.width = '0';
+      piece.style.height = '0';
+      piece.style.backgroundColor = 'transparent';
+      piece.style.borderLeft = size/2 + 'px solid transparent';
+      piece.style.borderRight = size/2 + 'px solid transparent';
+      piece.style.borderBottom = size + 'px solid ' + color;
+    }
+    container.appendChild(piece);
+  }
+  setTimeout(() => container.remove(), 3000);
+}
+
+// Check if a milestone was just crossed and launch extra confetti
+function checkMilestone(oldCount, newCount, total) {
+  if (total === 0) return false;
+  const oldPct = Math.round(oldCount / total * 100);
+  const newPct = Math.round(newCount / total * 100);
+  const milestones = [25, 50, 75, 100];
+  for (const m of milestones) {
+    if (oldPct < m && newPct >= m) return true;
+  }
+  return false;
+}
+
 /* ══════════════════ FORMATTING ══════════════════ */
 const $ = amt => {
   if (Math.abs(amt) >= 1000) return amt < 0
@@ -403,14 +478,80 @@ function render() {
     <div class="stat-box"><div class="val">${monthsToGo > 0 ? monthsToGo + ' mo' : 'Done!'}</div><div class="lbl">Months to Go</div></div>
   </div>`;
 
-  // Progress
+  // Progress — ring + milestone + loans destroyed
   const pctDone = totalPeriods > 0 ? Math.round(paidCount / totalPeriods * 100) : 0;
+  const circumference = 2 * Math.PI * 72; // r=72
+  const dashOffset = circumference - (circumference * pctDone / 100);
+
+  // Milestone messages
+  let milestoneMsg = '', milestoneColor = '#888';
+  if (pctDone === 0) { milestoneMsg = "Let's get started!"; milestoneColor = '#888'; }
+  else if (pctDone < 10) { milestoneMsg = "You're off to a great start!"; milestoneColor = '#e67e22'; }
+  else if (pctDone < 25) { milestoneMsg = "Keep it up, you got this!"; milestoneColor = '#e67e22'; }
+  else if (pctDone < 30) { milestoneMsg = "25% DOWN! You're crushing it!"; milestoneColor = '#d4536a'; }
+  else if (pctDone < 50) { milestoneMsg = "Almost halfway there!"; milestoneColor = '#d4536a'; }
+  else if (pctDone < 55) { milestoneMsg = "HALFWAY DONE! Amazing!"; milestoneColor = '#8e44ad'; }
+  else if (pctDone < 75) { milestoneMsg = "More than half gone! So close!"; milestoneColor = '#8e44ad'; }
+  else if (pctDone < 80) { milestoneMsg = "75%! The finish line is in sight!"; milestoneColor = '#27ae60'; }
+  else if (pctDone < 95) { milestoneMsg = "Almost there! You're a legend!"; milestoneColor = '#27ae60'; }
+  else if (pctDone < 100) { milestoneMsg = "SO CLOSE! Just a few more!"; milestoneColor = '#27ae60'; }
+  else { milestoneMsg = "YOU DID IT! DEBT FREE!!!"; milestoneColor = '#27ae60'; }
+
+  // Figure out which loans are "dead" (paid off based on schedule + paid periods)
+  const loansKilled = [];
+  for (let i = 0; i < LOANS.length; i++) {
+    const paidOffRow = schedule.find(r => r.balances[i] === 0);
+    if (paidOffRow) {
+      const allPriorPaid = schedule.filter(r => r.period <= paidOffRow.period).every(r => !!paid[r.period]);
+      loansKilled.push({ loan: LOANS[i], period: paidOffRow.period, date: paidOffRow.date, killed: allPriorPaid });
+    }
+  }
+
   html += `<div class="card"><h2>Progress</h2>
-    <div class="progress-wrap"><div class="progress-bar">
-      <div class="progress-fill" style="width:${Math.max(pctDone,2)}%">${pctDone}%</div>
-    </div></div>
-    <div style="font-size:0.8rem;color:#888;margin-top:4px">${paidCount} of ${totalPeriods} payments made</div>
-  </div>`;
+    <div class="progress-section">
+      <div class="ring-wrap">
+        <svg width="180" height="180" viewBox="0 0 180 180">
+          <defs><linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#e67e22"/>
+            <stop offset="50%" stop-color="#d4536a"/>
+            <stop offset="100%" stop-color="#27ae60"/>
+          </linearGradient></defs>
+          <circle class="ring-bg" cx="90" cy="90" r="72"/>
+          <circle class="ring-fill" cx="90" cy="90" r="72"
+            stroke-dasharray="${circumference}"
+            stroke-dashoffset="${dashOffset}"/>
+        </svg>
+        <div class="ring-text">
+          <div class="ring-pct">${pctDone}%</div>
+          <div class="ring-label">PAID OFF</div>
+        </div>
+      </div>
+      <div class="milestone-msg" style="color:${milestoneColor}">${milestoneMsg}</div>
+      <div class="payments-count">${paidCount} of ${totalPeriods} payments made</div>
+    </div>
+
+    <div class="destroyed-section">
+      <div class="destroyed-title">Loans Destroyed</div>`;
+
+  // Sort by rate descending (highest killed first is most satisfying)
+  const sortedKills = [...loansKilled].sort((a, b) => b.loan.rate - a.loan.rate);
+  for (const k of sortedKills) {
+    html += `<div class="loan-tombstone ${k.killed ? '' : 'alive'}">
+      <span class="tombstone-name">${k.loan.name} (${k.loan.rate}%)</span>
+      <span class="tombstone-status ${k.killed ? 'dead' : 'alive'}">${k.killed ? 'PAID OFF' : 'Est. ' + fmtDateShort(k.date)}</span>
+    </div>`;
+  }
+  // Any loans not in payoffOrder yet
+  for (let i = 0; i < LOANS.length; i++) {
+    if (!loansKilled.find(k => k.loan.id === LOANS[i].id)) {
+      html += `<div class="loan-tombstone alive">
+        <span class="tombstone-name">${LOANS[i].name} (${LOANS[i].rate}%)</span>
+        <span class="tombstone-status alive">In Progress</span>
+      </div>`;
+    }
+  }
+
+  html += `</div></div>`;
 
   // Notification / Calendar
   html += `<div class="card">`;
@@ -576,14 +717,26 @@ function render() {
   // Download calendar
   document.getElementById('dlCalBtn').addEventListener('click', () => downloadICS(schedule));
 
-  // Payment tracker checkboxes
+  // Payment tracker checkboxes with confetti
   document.querySelectorAll('.paidChk').forEach(chk => {
     chk.addEventListener('change', e => {
       const p = e.target.dataset.p;
       const data = loadPaidPeriods();
+      const oldCount = Object.keys(data).length;
       if (e.target.checked) data[p] = true;
       else delete data[p];
       savePaidPeriods(data);
+      const newCount = Object.keys(data).length;
+      const total = document.querySelectorAll('.paidChk').length;
+      // Confetti on every check-off
+      if (e.target.checked) {
+        launchConfetti();
+        // Double confetti for milestones!
+        if (checkMilestone(oldCount, newCount, total)) {
+          setTimeout(() => launchConfetti(), 400);
+          setTimeout(() => launchConfetti(), 800);
+        }
+      }
       applyTrackerState();
     });
   });
@@ -602,16 +755,16 @@ function applyTrackerState() {
     row.classList.toggle('row-paid', isP);
   });
 
-  // Update progress bar
+  // Update progress ring
   const total = document.querySelectorAll('.paidChk').length;
   const checked = Object.keys(data).length;
   const pct = total > 0 ? Math.round(checked / total * 100) : 0;
-  const fill = document.querySelector('.progress-fill');
-  if (fill) {
-    fill.style.width = Math.max(pct, 2) + '%';
-    fill.textContent = pct + '%';
-  }
-  const countEl = document.querySelector('.progress-wrap + div');
+  const circumference = 2 * Math.PI * 72;
+  const ring = document.querySelector('.ring-fill');
+  if (ring) ring.style.strokeDashoffset = circumference - (circumference * pct / 100);
+  const pctEl = document.querySelector('.ring-pct');
+  if (pctEl) pctEl.textContent = pct + '%';
+  const countEl = document.querySelector('.payments-count');
   if (countEl) countEl.textContent = `${checked} of ${total} payments made`;
 }
 
