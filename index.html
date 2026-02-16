@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sophia's Loan Payoff Planner</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Sophia Loans">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#faf5f2;color:#2d2d2d;padding:16px;max-width:900px;margin:0 auto;line-height:1.4}
+h1{font-size:1.6rem;text-align:center;color:#d4536a;margin-bottom:4px}
+.subtitle{text-align:center;color:#888;font-size:0.85rem;margin-bottom:16px}
+h2{font-size:1.15rem;margin-bottom:10px;color:#c0392b;border-bottom:2px solid #f0ddd5;padding-bottom:6px}
+.card{background:#fff;border-radius:14px;padding:20px;margin-bottom:16px;box-shadow:0 2px 10px rgba(0,0,0,0.06)}
+
+/* Alert Banner */
+.alert-banner{padding:18px 16px;border-radius:14px;text-align:center;font-size:1.05rem;font-weight:600;margin-bottom:16px;line-height:1.5}
+.alert-overdue{background:#e74c3c;color:#fff}
+.alert-due{background:#f39c12;color:#fff}
+.alert-good{background:#27ae60;color:#fff}
+
+/* Action Card */
+.action-card{background:linear-gradient(135deg,#d4536a,#c0392b);color:#fff;border-radius:14px;padding:24px;margin-bottom:16px;text-align:center}
+.action-card .label{font-size:0.9rem;opacity:0.9}
+.action-card .amount{font-size:2.8rem;font-weight:800;margin:6px 0;letter-spacing:-1px}
+.action-card .detail{font-size:0.85rem;opacity:0.85;margin-top:4px}
+
+/* Quick Stats */
+.stats-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px}
+.stat-box{background:#fff;border-radius:12px;padding:14px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.05)}
+.stat-box .val{font-size:1.4rem;font-weight:700;color:#c0392b}
+.stat-box .lbl{font-size:0.7rem;color:#888;margin-top:2px;text-transform:uppercase;letter-spacing:0.5px}
+
+/* Extra Payment Breakdown */
+.pay-target{background:#fff3cd;border:2px solid #f0c040;border-radius:12px;padding:16px;margin-bottom:16px}
+.pay-target h3{font-size:1rem;margin-bottom:8px;color:#856404}
+.pay-target .target-loan{font-size:1.2rem;font-weight:700;color:#c0392b}
+.pay-target .target-amt{font-size:1.8rem;font-weight:800;color:#c0392b;margin:4px 0}
+.pay-target .note{font-size:0.8rem;color:#856404;margin-top:6px}
+
+/* Tables */
+table{width:100%;border-collapse:collapse;font-size:0.8rem}
+th,td{padding:8px 5px;text-align:right;border-bottom:1px solid #f0e6e0}
+th{background:#faf0eb;font-weight:600;position:sticky;top:0;z-index:2;color:#8b5e4b}
+td:first-child,th:first-child{text-align:center;width:36px}
+td:nth-child(2),th:nth-child(2){text-align:left}
+.row-paid{background:#fee2e2!important}
+.row-paid td:nth-child(2){text-decoration:line-through;color:#999}
+
+/* Progress */
+.progress-wrap{margin:10px 0}
+.progress-bar{height:26px;background:#f0e0d8;border-radius:13px;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,#e67e22,#c0392b);transition:width 0.4s;display:flex;align-items:center;justify-content:center;color:#fff;font-size:0.75rem;font-weight:700;min-width:40px}
+
+/* Settings */
+.settings-toggle{display:block;width:100%;text-align:left;background:none;border:none;font-size:1rem;font-weight:600;color:#c0392b;cursor:pointer;padding:8px 0}
+.settings-body{display:none;padding-top:10px}
+.settings-body.open{display:block}
+.setting-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f5ebe5}
+.setting-row label{font-size:0.85rem;color:#555}
+.setting-row input{width:110px;text-align:right;padding:5px 8px;border:1px solid #ddd;border-radius:8px;font-size:0.9rem}
+.setting-row .computed{font-size:0.9rem;font-weight:600;color:#c0392b}
+
+/* Buttons */
+.btn{display:inline-block;padding:12px 24px;border:none;border-radius:10px;font-size:0.95rem;font-weight:600;cursor:pointer;text-decoration:none;transition:transform 0.1s}
+.btn:active{transform:scale(0.97)}
+.btn-primary{background:#c0392b;color:#fff}
+.btn-secondary{background:#f0ddd5;color:#8b5e4b}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}
+
+/* Notification prompt */
+.notif-prompt{background:#eaf4fe;border:2px solid #3498db;border-radius:12px;padding:16px;margin-bottom:16px;text-align:center}
+.notif-prompt p{margin-bottom:10px;color:#2471a3;font-weight:500}
+
+/* Loan overview */
+.loan-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f0e6e0}
+.loan-row:last-child{border-bottom:none}
+.loan-name{font-weight:600;font-size:0.9rem}
+.loan-meta{font-size:0.8rem;color:#888}
+.loan-bal{font-weight:700;font-size:1rem;color:#c0392b}
+
+/* Calendar */
+.calendar-section{text-align:center;margin:12px 0}
+
+/* Responsive */
+@media(max-width:600px){
+  body{padding:10px}
+  .card{padding:14px}
+  .stats-row{grid-template-columns:1fr}
+  .action-card .amount{font-size:2.2rem}
+  table{font-size:0.72rem}
+  th,td{padding:6px 3px}
+}
+
+/* Collapsible table */
+.table-wrap{max-height:600px;overflow-y:auto;border-radius:10px;border:1px solid #f0e6e0}
+</style>
+</head>
+<body>
+
+<h1>Sophia's Loan Payoff Planner</h1>
+<p class="subtitle">Avalanche Method &bull; Updated Feb 2026</p>
+
+<div id="app"></div>
+
+<script>
+'use strict';
+
+/* ══════════════════ CONFIG ══════════════════ */
+const CFG = {
+  salary:       73000,
+  k401Pct:      0,
+  carMonthly:   400,
+  spendMonthly: 800,
+  startDate:    '2026-03-01',
+  payInterval:  14,
+};
+
+/* ══════════════════ LOANS ══════════════════ */
+const LOANS = [
+  { id:1, name:'1-01 Direct Unsub',  rate:2.750, bal:6807.43,  minMo:65.88  },
+  { id:2, name:'1-02 Direct Sub',    rate:3.730, bal:5435.99,  minMo:55.07  },
+  { id:3, name:'1-03 Direct Unsub',  rate:5.280, bal:13409.78, minMo:145.86 },
+  { id:4, name:'1-04 Direct Unsub',  rate:6.540, bal:23259.34, minMo:267.65 },
+  { id:5, name:'1-05 Direct Unsub',  rate:7.050, bal:23185.66, minMo:270.40 },
+  { id:6, name:'1-07 Grad PLUS',     rate:8.050, bal:6951.64,  minMo:0      },
+  { id:7, name:'1-09 Grad PLUS',     rate:8.050, bal:6999.28,  minMo:0      },
+];
+
+/* ══════════════════ TAX HELPERS ══════════════════ */
+const FED_BRACKETS = [[11925,.10],[48475,.12],[103350,.22],[197300,.24],[250525,.32],[626350,.35],[Infinity,.37]];
+const VA_BRACKETS  = [[3000,.02],[5000,.03],[17000,.05],[Infinity,.0575]];
+const FED_STD = 15000, VA_STD = 8000;
+const SS_RATE = .062, SS_CAP = 176100, MED_RATE = .0145;
+
+function bracketTax(income, brackets) {
+  let tax = 0, prev = 0;
+  for (const [limit, rate] of brackets) {
+    if (income <= prev) break;
+    tax += (Math.min(income, limit) - prev) * rate;
+    prev = limit;
+  }
+  return tax;
+}
+
+function calcTakeHome() {
+  const gross = CFG.salary;
+  const k401 = gross * CFG.k401Pct / 100;
+  const agi = gross - k401;
+  const fedTax = bracketTax(Math.max(0, agi - FED_STD), FED_BRACKETS);
+  const vaTax  = bracketTax(Math.max(0, agi - VA_STD), VA_BRACKETS);
+  const ss  = Math.min(gross, SS_CAP) * SS_RATE;
+  const med = gross * MED_RATE;
+  const annual = gross - k401 - fedTax - vaTax - ss - med;
+  return { annual, biweekly: annual / 26, fedTax, vaTax, ss, med, k401 };
+}
+
+/* ══════════════════ AVALANCHE SIMULATION ══════════════════ */
+function runAvalanche() {
+  const take = calcTakeHome();
+  const carPer   = CFG.carMonthly * 12 / 26;
+  const spendPer = CFG.spendMonthly * 12 / 26;
+  const totalBudget = Math.max(0, take.biweekly - carPer - spendPer);
+
+  let bals = LOANS.map(l => l.bal);
+  const rates = LOANS.map(l => l.rate / 100);
+  const minsPer = LOANS.map(l => l.minMo * 12 / 26);
+  const days = CFG.payInterval;
+  const schedule = [];
+  let d = new Date(CFG.startDate + 'T00:00:00');
+  let period = 0;
+
+  while (bals.some(b => b > 0.005) && period < 500) {
+    period++;
+    // Accrue interest
+    for (let i = 0; i < bals.length; i++) {
+      if (bals[i] > 0) bals[i] += bals[i] * rates[i] / 365.25 * days;
+    }
+
+    let budget = totalBudget;
+    const payments = new Array(bals.length).fill(0);
+
+    // 1) Pay minimums
+    for (let i = 0; i < bals.length; i++) {
+      if (bals[i] > 0) {
+        const pay = Math.min(minsPer[i], bals[i], budget);
+        payments[i] = pay;
+        bals[i] -= pay;
+        budget -= pay;
+      }
+    }
+
+    // 2) Avalanche: extra to highest-rate loan
+    const order = LOANS.map((_, i) => i)
+      .filter(i => bals[i] > 0.005)
+      .sort((a, b) => rates[b] - rates[a] || bals[a] - bals[b]);
+
+    for (const i of order) {
+      if (budget <= 0.005) break;
+      const pay = Math.min(bals[i], budget);
+      payments[i] += pay;
+      bals[i] -= pay;
+      budget -= pay;
+    }
+
+    bals = bals.map(b => Math.max(0, Math.round(b * 100) / 100));
+
+    schedule.push({
+      period,
+      date: new Date(d),
+      payments: [...payments],
+      balances: [...bals],
+      total: payments.reduce((s, p) => s + p, 0),
+      remaining: bals.reduce((s, b) => s + b, 0),
+    });
+
+    d = new Date(d.getTime() + days * 86400000);
+  }
+
+  return { schedule, take, totalBudget, carPer, spendPer };
+}
+
+/* ══════════════════ TRACKER (localStorage) ══════════════════ */
+const STORAGE_KEY = 'sophiaLoanPayoffTracker';
+
+function loadPaidPeriods() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }
+  catch { return {}; }
+}
+function savePaidPeriods(data) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+/* ══════════════════ NOTIFICATIONS ══════════════════ */
+let notifPermission = typeof Notification !== 'undefined' ? Notification.permission : 'denied';
+
+function requestNotifPermission() {
+  if (typeof Notification === 'undefined') return;
+  Notification.requestPermission().then(p => {
+    notifPermission = p;
+    render();
+  });
+}
+
+function showNotification(title, body) {
+  if (notifPermission === 'granted') {
+    new Notification(title, { body, icon: '💰' });
+  }
+}
+
+/* ══════════════════ CALENDAR (.ics) ══════════════════ */
+function generateICS(schedule) {
+  const pad = n => String(n).padStart(2, '0');
+  const fmtDate = d => `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}T090000`;
+  const endDate = schedule.length > 0 ? schedule[schedule.length - 1].date : new Date();
+  const count = schedule.length;
+
+  let ics = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//SophiaLoanPlanner//EN\r\n`;
+  ics += `BEGIN:VEVENT\r\n`;
+  ics += `DTSTART:${fmtDate(new Date(CFG.startDate + 'T00:00:00'))}\r\n`;
+  ics += `RRULE:FREQ=WEEKLY;INTERVAL=2;COUNT=${count}\r\n`;
+  ics += `SUMMARY:Make Extra Loan Payment\r\n`;
+  ics += `DESCRIPTION:Open your loan planner app and make your extra payment for this pay period!\r\n`;
+  ics += `BEGIN:VALARM\r\nTRIGGER:-PT1H\r\nACTION:DISPLAY\r\nDESCRIPTION:Loan payment reminder\r\nEND:VALARM\r\n`;
+  ics += `END:VEVENT\r\nEND:VCALENDAR\r\n`;
+  return ics;
+}
+
+function downloadICS(schedule) {
+  const ics = generateICS(schedule);
+  const blob = new Blob([ics], { type: 'text/calendar' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'sophia-loan-reminders.ics';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ══════════════════ FORMATTING ══════════════════ */
+const $ = amt => {
+  if (Math.abs(amt) >= 1000) return amt < 0
+    ? '-$' + Math.abs(amt).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})
+    : '$' + amt.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+  return (amt < 0 ? '-' : '') + '$' + Math.abs(amt).toFixed(2);
+};
+const fmtDate = d => d.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
+const fmtDateShort = d => d.toLocaleDateString('en-US', {month:'short', day:'numeric'});
+
+/* ══════════════════ RENDER ══════════════════ */
+function render() {
+  const { schedule, take, totalBudget, carPer, spendPer } = runAvalanche();
+  const paid = loadPaidPeriods();
+  const today = new Date();
+  today.setHours(0,0,0,0);
+
+  // Find current/next unpaid period
+  let currentPeriod = null;
+  let nextUnpaid = null;
+  for (const row of schedule) {
+    const rowEnd = new Date(row.date.getTime() + CFG.payInterval * 86400000);
+    if (row.date <= today && today < rowEnd) currentPeriod = row;
+    if (!paid[row.period] && !nextUnpaid) nextUnpaid = row;
+  }
+
+  const totalOriginal = LOANS.reduce((s, l) => s + l.bal, 0);
+  const paidCount = Object.keys(paid).length;
+  const totalPeriods = schedule.length;
+  const payoffDate = schedule.length > 0 ? schedule[schedule.length-1].date : today;
+  const monthsToGo = Math.ceil((payoffDate - today) / (30.44 * 86400000));
+
+  // Determine alert status
+  let alertClass = 'alert-good', alertMsg = 'All caught up! No payment due right now.';
+  if (nextUnpaid) {
+    const daysUntil = Math.ceil((nextUnpaid.date - today) / 86400000);
+    if (daysUntil < 0) {
+      alertClass = 'alert-overdue';
+      alertMsg = `OVERDUE: Period ${nextUnpaid.period} payment was due ${fmtDate(nextUnpaid.date)}!`;
+    } else if (daysUntil <= 3) {
+      alertClass = 'alert-due';
+      alertMsg = `Payment due ${daysUntil === 0 ? 'TODAY' : 'in ' + daysUntil + ' day' + (daysUntil>1?'s':'')}: Period ${nextUnpaid.period} (${fmtDate(nextUnpaid.date)})`;
+    } else {
+      alertClass = 'alert-good';
+      alertMsg = `Next payment: Period ${nextUnpaid.period} on ${fmtDate(nextUnpaid.date)} (${daysUntil} days)`;
+    }
+  }
+
+  // Show browser notification for overdue/due-soon
+  if (nextUnpaid) {
+    const daysUntil = Math.ceil((nextUnpaid.date - today) / 86400000);
+    if (daysUntil <= 1 && notifPermission === 'granted') {
+      showNotification('Loan Payment Reminder!',
+        daysUntil < 0
+          ? `You have an overdue payment! Open the app to see details.`
+          : `Payment due ${daysUntil === 0 ? 'today' : 'tomorrow'}. Check your planner!`
+      );
+    }
+  }
+
+  // Find which loan gets the extra payment for the next unpaid period
+  let extraTarget = null, extraAmount = 0;
+  if (nextUnpaid) {
+    let maxPay = 0;
+    for (let i = 0; i < LOANS.length; i++) {
+      const minP = LOANS[i].minMo * 12 / 26;
+      const extra = nextUnpaid.payments[i] - minP;
+      if (extra > maxPay) {
+        maxPay = extra;
+        extraTarget = LOANS[i];
+        extraAmount = extra;
+      }
+    }
+  }
+
+  let html = '';
+
+  // Alert Banner
+  html += `<div class="alert-banner ${alertClass}">${alertMsg}</div>`;
+
+  // Action Card
+  if (nextUnpaid) {
+    html += `<div class="action-card">
+      <div class="label">Total to pay this period</div>
+      <div class="amount">${$(nextUnpaid.total)}</div>
+      <div class="detail">Period ${nextUnpaid.period} &bull; ${fmtDate(nextUnpaid.date)}</div>
+    </div>`;
+  }
+
+  // Extra payment target
+  if (extraTarget && extraAmount > 1) {
+    html += `<div class="pay-target">
+      <h3>Your auto-pay covers the minimums. Make this EXTRA payment:</h3>
+      <div class="target-amt">${$(extraAmount)}</div>
+      <div class="target-loan">&#8594; ${extraTarget.name} (${extraTarget.rate}%)</div>
+      <div class="note">This is the highest-rate loan with a remaining balance. Paying it first saves you the most money!</div>
+    </div>`;
+  }
+
+  // Quick Stats
+  html += `<div class="stats-row">
+    <div class="stat-box"><div class="val">${$(totalOriginal)}</div><div class="lbl">Starting Balance</div></div>
+    <div class="stat-box"><div class="val">${fmtDate(payoffDate)}</div><div class="lbl">Payoff Date</div></div>
+    <div class="stat-box"><div class="val">${monthsToGo > 0 ? monthsToGo + ' mo' : 'Done!'}</div><div class="lbl">Months to Go</div></div>
+  </div>`;
+
+  // Progress
+  const pctDone = totalPeriods > 0 ? Math.round(paidCount / totalPeriods * 100) : 0;
+  html += `<div class="card"><h2>Progress</h2>
+    <div class="progress-wrap"><div class="progress-bar">
+      <div class="progress-fill" style="width:${Math.max(pctDone,2)}%">${pctDone}%</div>
+    </div></div>
+    <div style="font-size:0.8rem;color:#888;margin-top:4px">${paidCount} of ${totalPeriods} payments made</div>
+  </div>`;
+
+  // Notification / Calendar
+  html += `<div class="card">`;
+  html += `<h2>Reminders</h2>`;
+  if (typeof Notification !== 'undefined' && notifPermission === 'default') {
+    html += `<div class="notif-prompt">
+      <p>Turn on notifications so you never miss a payment!</p>
+      <button class="btn btn-primary" onclick="requestNotifPermission()">Enable Notifications</button>
+    </div>`;
+  } else if (notifPermission === 'granted') {
+    html += `<p style="color:#27ae60;font-weight:600;margin-bottom:10px">Notifications are ON</p>`;
+  } else if (notifPermission === 'denied') {
+    html += `<p style="color:#888;font-size:0.85rem;margin-bottom:10px">Notifications blocked. You can enable them in your browser settings.</p>`;
+  }
+  html += `<div class="calendar-section">
+    <p style="font-size:0.85rem;color:#555;margin-bottom:8px">Add bi-weekly reminders to your phone calendar:</p>
+    <button class="btn btn-secondary" id="dlCalBtn">Download Calendar Reminders (.ics)</button>
+  </div>`;
+  html += `</div>`;
+
+  // Settings (collapsible)
+  html += `<div class="card">
+    <button class="settings-toggle" id="settingsToggle">Settings &#9662;</button>
+    <div class="settings-body" id="settingsBody">
+      <div class="setting-row"><label>Annual Salary</label><input type="text" id="cfgSalary" value="${CFG.salary}"></div>
+      <div class="setting-row"><label>401K %</label><input type="text" id="cfgK401" value="${CFG.k401Pct}"></div>
+      <div class="setting-row"><label>Car Payment (monthly)</label><input type="text" id="cfgCar" value="${CFG.carMonthly}"></div>
+      <div class="setting-row"><label>Personal Spending (monthly)</label><input type="text" id="cfgSpend" value="${CFG.spendMonthly}"></div>
+      <div class="setting-row"><label>Bi-weekly Take-Home</label><span class="computed">${$(take.biweekly)}</span></div>
+      <div class="setting-row"><label>Car per period</label><span class="computed">${$(carPer)}</span></div>
+      <div class="setting-row"><label>Spending per period</label><span class="computed">${$(spendPer)}</span></div>
+      <div class="setting-row"><label>Available for loans (per period)</label><span class="computed" style="font-size:1.1rem">${$(totalBudget)}</span></div>
+      <hr style="margin:12px 0;border:none;border-top:1px solid #f0e6e0">
+      <p style="font-size:0.8rem;color:#888;margin-bottom:8px">Edit minimum monthly payments:</p>`;
+  for (const l of LOANS) {
+    html += `<div class="setting-row"><label>${l.name} (${l.rate}%)</label><input type="text" class="minInput" data-lid="${l.id}" value="${l.minMo}"></div>`;
+  }
+  html += `<div style="margin-top:12px"><button class="btn btn-primary" id="applySettings">Apply Changes</button></div>
+    </div>
+  </div>`;
+
+  // Loan Overview
+  html += `<div class="card"><h2>Your Loans (by interest rate)</h2>`;
+  const sorted = [...LOANS].sort((a, b) => b.rate - a.rate);
+  for (const l of sorted) {
+    html += `<div class="loan-row">
+      <div><div class="loan-name">${l.name}</div><div class="loan-meta">${l.rate}% &bull; Min: ${$(l.minMo)}/mo</div></div>
+      <div class="loan-bal">${$(l.bal)}</div>
+    </div>`;
+  }
+  html += `</div>`;
+
+  // Payoff Order
+  html += `<div class="card"><h2>Payoff Order (Avalanche)</h2>`;
+  html += `<p style="font-size:0.85rem;color:#555;margin-bottom:10px">Loans are paid off in this order, highest rate first:</p>`;
+  let orderNum = 1;
+  const payoffOrder = [];
+  for (const row of schedule) {
+    for (let i = 0; i < LOANS.length; i++) {
+      if (row.balances[i] === 0 && !payoffOrder.includes(i)) {
+        payoffOrder.push(i);
+      }
+    }
+  }
+  for (const i of payoffOrder) {
+    const paidOff = schedule.find(r => r.balances[i] === 0);
+    html += `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0e6e0;font-size:0.85rem">
+      <span><strong>${orderNum}.</strong> ${LOANS[i].name} (${LOANS[i].rate}%)</span>
+      <span style="color:#27ae60;font-weight:600">${paidOff ? fmtDate(paidOff.date) : '—'}</span>
+    </div>`;
+    orderNum++;
+  }
+  html += `</div>`;
+
+  // Payment Schedule Table
+  html += `<div class="card"><h2>Payment Schedule</h2>
+    <p style="font-size:0.8rem;color:#888;margin-bottom:10px">Check off each period as you make your payment. All payments go to MOHELA.</p>
+    <div class="table-wrap"><table>
+    <thead><tr>
+      <th>Paid</th><th>#</th><th>Date</th><th>Pay to MOHELA</th><th>Remaining</th>
+    </tr></thead><tbody>`;
+
+  for (const row of schedule) {
+    const isP = !!paid[row.period];
+    html += `<tr class="${isP ? 'row-paid' : ''}" data-period="${row.period}">
+      <td><input type="checkbox" class="paidChk" data-p="${row.period}" ${isP ? 'checked' : ''}></td>
+      <td>${row.period}</td>
+      <td style="text-align:left">${fmtDateShort(row.date)}</td>
+      <td><strong>${$(row.total)}</strong></td>
+      <td>${$(row.remaining)}</td>
+    </tr>`;
+  }
+
+  html += `</tbody></table></div></div>`;
+
+  // Detailed Breakdown Table
+  html += `<div class="card"><h2>Detailed Breakdown</h2>
+    <p style="font-size:0.8rem;color:#888;margin-bottom:10px">How much goes to each loan per period.</p>
+    <div class="table-wrap"><table>
+    <thead><tr>
+      <th>Paid</th><th>#</th><th>Date</th>`;
+  for (const l of LOANS) html += `<th>${l.name.split(' ')[0]}</th>`;
+  html += `<th>Total</th></tr></thead><tbody>`;
+
+  for (const row of schedule) {
+    const isP = !!paid[row.period];
+    html += `<tr class="${isP ? 'row-paid' : ''}" data-det-period="${row.period}">
+      <td><input type="checkbox" class="paidChkDet" data-p="${row.period}" ${isP ? 'checked' : ''}></td>
+      <td>${row.period}</td>
+      <td style="text-align:left">${fmtDateShort(row.date)}</td>`;
+    for (let i = 0; i < LOANS.length; i++) {
+      const val = row.payments[i];
+      html += `<td>${val > 0.005 ? $(val) : '—'}</td>`;
+    }
+    html += `<td><strong>${$(row.total)}</strong></td></tr>`;
+  }
+
+  html += `</tbody></table></div></div>`;
+
+  // Tax Breakdown
+  html += `<div class="card"><h2>Tax Breakdown (Annual)</h2>
+    <div class="setting-row"><label>Gross Salary</label><span class="computed">${$(CFG.salary)}</span></div>
+    <div class="setting-row"><label>401K Contribution</label><span class="computed">${$(take.k401)}</span></div>
+    <div class="setting-row"><label>Federal Tax</label><span class="computed">${$(take.fedTax)}</span></div>
+    <div class="setting-row"><label>VA State Tax</label><span class="computed">${$(take.vaTax)}</span></div>
+    <div class="setting-row"><label>Social Security</label><span class="computed">${$(take.ss)}</span></div>
+    <div class="setting-row"><label>Medicare</label><span class="computed">${$(take.med)}</span></div>
+    <hr style="margin:8px 0;border:none;border-top:2px solid #f0e6e0">
+    <div class="setting-row"><label><strong>Annual Take-Home</strong></label><span class="computed" style="font-size:1.1rem">${$(take.annual)}</span></div>
+    <div class="setting-row"><label><strong>Bi-Weekly Take-Home</strong></label><span class="computed" style="font-size:1.1rem">${$(take.biweekly)}</span></div>
+  </div>`;
+
+  document.getElementById('app').innerHTML = html;
+
+  /* ── Event Listeners ── */
+
+  // Settings toggle
+  document.getElementById('settingsToggle').addEventListener('click', () => {
+    const body = document.getElementById('settingsBody');
+    body.classList.toggle('open');
+  });
+
+  // Apply settings
+  document.getElementById('applySettings').addEventListener('click', () => {
+    const v = s => parseFloat(s.replace(/[^0-9.\-]/g, '')) || 0;
+    CFG.salary = v(document.getElementById('cfgSalary').value);
+    CFG.k401Pct = v(document.getElementById('cfgK401').value);
+    CFG.carMonthly = v(document.getElementById('cfgCar').value);
+    CFG.spendMonthly = v(document.getElementById('cfgSpend').value);
+    document.querySelectorAll('.minInput').forEach(inp => {
+      const lid = parseInt(inp.dataset.lid);
+      const loan = LOANS.find(l => l.id === lid);
+      if (loan) loan.minMo = v(inp.value);
+    });
+    render();
+  });
+
+  // Download calendar
+  document.getElementById('dlCalBtn').addEventListener('click', () => downloadICS(schedule));
+
+  // Payment tracker checkboxes (main table)
+  document.querySelectorAll('.paidChk').forEach(chk => {
+    chk.addEventListener('change', e => {
+      const p = e.target.dataset.p;
+      const data = loadPaidPeriods();
+      if (e.target.checked) data[p] = true;
+      else delete data[p];
+      savePaidPeriods(data);
+      // Sync both tables
+      applyTrackerState();
+    });
+  });
+
+  // Payment tracker checkboxes (detail table)
+  document.querySelectorAll('.paidChkDet').forEach(chk => {
+    chk.addEventListener('change', e => {
+      const p = e.target.dataset.p;
+      const data = loadPaidPeriods();
+      if (e.target.checked) data[p] = true;
+      else delete data[p];
+      savePaidPeriods(data);
+      applyTrackerState();
+    });
+  });
+
+  applyTrackerState();
+}
+
+function applyTrackerState() {
+  const data = loadPaidPeriods();
+
+  // Main schedule table
+  document.querySelectorAll('.paidChk').forEach(chk => {
+    const p = chk.dataset.p;
+    const isP = !!data[p];
+    chk.checked = isP;
+    const row = chk.closest('tr');
+    row.classList.toggle('row-paid', isP);
+  });
+
+  // Detail table
+  document.querySelectorAll('.paidChkDet').forEach(chk => {
+    const p = chk.dataset.p;
+    const isP = !!data[p];
+    chk.checked = isP;
+    const row = chk.closest('tr');
+    row.classList.toggle('row-paid', isP);
+  });
+
+  // Update progress bar
+  const total = document.querySelectorAll('.paidChk').length;
+  const checked = Object.keys(data).length;
+  const pct = total > 0 ? Math.round(checked / total * 100) : 0;
+  const fill = document.querySelector('.progress-fill');
+  if (fill) {
+    fill.style.width = Math.max(pct, 2) + '%';
+    fill.textContent = pct + '%';
+  }
+  const countEl = document.querySelector('.progress-wrap + div');
+  if (countEl) countEl.textContent = `${checked} of ${total} payments made`;
+}
+
+/* ══════════════════ INIT ══════════════════ */
+render();
+</script>
+</body>
+</html>
