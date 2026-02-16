@@ -33,12 +33,19 @@ h2{font-size:1.15rem;margin-bottom:10px;color:#c0392b;border-bottom:2px solid #f
 .stat-box .val{font-size:1.4rem;font-weight:700;color:#c0392b}
 .stat-box .lbl{font-size:0.7rem;color:#888;margin-top:2px;text-transform:uppercase;letter-spacing:0.5px}
 
-/* Extra Payment Breakdown */
-.pay-target{background:#fff3cd;border:2px solid #f0c040;border-radius:12px;padding:16px;margin-bottom:16px}
-.pay-target h3{font-size:1rem;margin-bottom:8px;color:#856404}
-.pay-target .target-loan{font-size:1.2rem;font-weight:700;color:#c0392b}
-.pay-target .target-amt{font-size:1.8rem;font-weight:800;color:#c0392b;margin:4px 0}
-.pay-target .note{font-size:0.8rem;color:#856404;margin-top:6px}
+/* Step boxes */
+.step-box{border-radius:14px;padding:18px;margin-bottom:14px}
+.step-auto{background:#d4edda;border:2px solid #28a745}
+.step-auto .step-label{color:#155724;font-weight:700;font-size:1rem;margin-bottom:4px}
+.step-auto .step-body{color:#155724;font-size:0.95rem}
+.step-auto .step-amt{font-size:1.3rem;font-weight:800;color:#155724}
+.step-manual{background:#fff3cd;border:3px solid #e74c3c;border-radius:14px;padding:20px;margin-bottom:14px}
+.step-manual .step-label{color:#c0392b;font-weight:800;font-size:1.15rem;margin-bottom:6px}
+.step-manual .step-body{color:#333;font-size:1rem;line-height:1.6}
+.step-manual .step-amt{font-size:2.6rem;font-weight:900;color:#c0392b;margin:8px 0;letter-spacing:-1px}
+.step-manual .step-loan{font-size:1.15rem;font-weight:700;color:#c0392b}
+.step-manual .step-note{font-size:0.85rem;color:#856404;margin-top:8px;padding-top:8px;border-top:1px dashed #e0c060;line-height:1.5}
+.step-math{font-size:0.8rem;color:#888;text-align:center;margin-bottom:16px;line-height:1.6}
 
 /* Tables */
 table{width:100%;border-collapse:collapse;font-size:0.8rem}
@@ -114,6 +121,7 @@ const CFG = {
   k401Pct:      0,
   carMonthly:   400,
   spendMonthly: 800,
+  autoPayMonthly: 1100,
   startDate:    '2026-03-01',
   payInterval:  14,
 };
@@ -339,6 +347,10 @@ function render() {
     }
   }
 
+  // Calculate auto-pay vs manual split
+  const autoPayPer = CFG.autoPayMonthly * 12 / 26;
+  const manualPer = Math.max(0, totalBudget - autoPayPer);
+
   // Find which loan gets the extra payment for the next unpaid period
   let extraTarget = null, extraAmount = 0;
   if (nextUnpaid) {
@@ -359,24 +371,30 @@ function render() {
   // Alert Banner
   html += `<div class="alert-banner ${alertClass}">${alertMsg}</div>`;
 
-  // Action Card
-  if (nextUnpaid) {
-    html += `<div class="action-card">
-      <div class="label">Total to pay this period</div>
-      <div class="amount">${$(nextUnpaid.total)}</div>
-      <div class="detail">Period ${nextUnpaid.period} &bull; ${fmtDate(nextUnpaid.date)}</div>
+  // STEP 1: Auto-pay (already handled)
+  html += `<div class="step-box step-auto">
+    <div class="step-label">AUTO-PAY: ALREADY HANDLED</div>
+    <div class="step-body">Your <span class="step-amt">${$(CFG.autoPayMonthly)}/month</span> auto-pay covers all your minimum payments. You don't need to do anything for this part.</div>
+  </div>`;
+
+  // STEP 2: What she needs to manually do
+  if (nextUnpaid && manualPer > 1) {
+    html += `<div class="step-manual">
+      <div class="step-label">WHAT YOU NEED TO DO (on top of auto-pay):</div>
+      <div class="step-body">Every 2 weeks when you get paid, log into MOHELA and manually pay:</div>
+      <div class="step-amt">${$(manualPer)}</div>
+      <div class="step-loan">${extraTarget ? '&#8594; Send it to: ' + extraTarget.name + ' (' + extraTarget.rate + '%)' : ''}</div>
+      <div class="step-note">This is ON TOP of your auto-pay. Your auto-pay handles the minimums automatically. This extra manual payment goes to your highest-rate loan to pay off your debt faster.<br><br>
+      <strong>Period ${nextUnpaid.period}</strong> &bull; ${fmtDate(nextUnpaid.date)}</div>
     </div>`;
   }
 
-  // Extra payment target
-  if (extraTarget && extraAmount > 1) {
-    html += `<div class="pay-target">
-      <h3>Your auto-pay covers the minimums. Make this EXTRA payment:</h3>
-      <div class="target-amt">${$(extraAmount)}</div>
-      <div class="target-loan">&#8594; ${extraTarget.name} (${extraTarget.rate}%)</div>
-      <div class="note">This is the highest-rate loan with a remaining balance. Paying it first saves you the most money!</div>
-    </div>`;
-  }
+  // Math breakdown
+  html += `<div class="step-math">
+    <strong>The math:</strong> Your paycheck is ${$(take.biweekly)} every 2 weeks.<br>
+    After car (${$(carPer)}) + spending (${$(spendPer)}), you have <strong>${$(totalBudget)}</strong> for loans.<br>
+    Auto-pay covers ${$(autoPayPer)}/period. That leaves <strong>${$(manualPer)}</strong> for you to pay manually.
+  </div>`;
 
   // Quick Stats
   html += `<div class="stats-row">
@@ -413,26 +431,7 @@ function render() {
   </div>`;
   html += `</div>`;
 
-  // Settings (collapsible)
-  html += `<div class="card">
-    <button class="settings-toggle" id="settingsToggle">Settings &#9662;</button>
-    <div class="settings-body" id="settingsBody">
-      <div class="setting-row"><label>Annual Salary</label><input type="text" id="cfgSalary" value="${CFG.salary}"></div>
-      <div class="setting-row"><label>401K %</label><input type="text" id="cfgK401" value="${CFG.k401Pct}"></div>
-      <div class="setting-row"><label>Car Payment (monthly)</label><input type="text" id="cfgCar" value="${CFG.carMonthly}"></div>
-      <div class="setting-row"><label>Personal Spending (monthly)</label><input type="text" id="cfgSpend" value="${CFG.spendMonthly}"></div>
-      <div class="setting-row"><label>Bi-weekly Take-Home</label><span class="computed">${$(take.biweekly)}</span></div>
-      <div class="setting-row"><label>Car per period</label><span class="computed">${$(carPer)}</span></div>
-      <div class="setting-row"><label>Spending per period</label><span class="computed">${$(spendPer)}</span></div>
-      <div class="setting-row"><label>Available for loans (per period)</label><span class="computed" style="font-size:1.1rem">${$(totalBudget)}</span></div>
-      <hr style="margin:12px 0;border:none;border-top:1px solid #f0e6e0">
-      <p style="font-size:0.8rem;color:#888;margin-bottom:8px">Edit minimum monthly payments:</p>`;
-  for (const l of LOANS) {
-    html += `<div class="setting-row"><label>${l.name} (${l.rate}%)</label><input type="text" class="minInput" data-lid="${l.id}" value="${l.minMo}"></div>`;
-  }
-  html += `<div style="margin-top:12px"><button class="btn btn-primary" id="applySettings">Apply Changes</button></div>
-    </div>
-  </div>`;
+  // (Settings moved to bottom)
 
   // Loan Overview
   html += `<div class="card"><h2>Your Loans (by interest rate)</h2>`;
@@ -525,15 +524,25 @@ function render() {
     <div class="setting-row"><label><strong>Bi-Weekly Take-Home</strong></label><span class="computed" style="font-size:1.1rem">${$(take.biweekly)}</span></div>
   </div>`;
 
+  // Settings (always visible, at the bottom)
+  html += `<div class="card"><h2>Your Info (edit if anything changes)</h2>
+    <p style="font-size:0.85rem;color:#888;margin-bottom:12px">If you get a raise, start a 401K, or your spending changes, update these numbers and hit "Apply Changes" to recalculate everything.</p>
+    <div class="setting-row"><label>Annual Salary</label><input type="text" id="cfgSalary" value="${CFG.salary}"></div>
+    <div class="setting-row"><label>401K % (0 if you don't have one yet)</label><input type="text" id="cfgK401" value="${CFG.k401Pct}"></div>
+    <div class="setting-row"><label>Car Payment (monthly)</label><input type="text" id="cfgCar" value="${CFG.carMonthly}"></div>
+    <div class="setting-row"><label>Personal Spending (monthly)</label><input type="text" id="cfgSpend" value="${CFG.spendMonthly}"></div>
+    <div class="setting-row"><label>Auto-Pay Amount (monthly)</label><input type="text" id="cfgAutoPay" value="${CFG.autoPayMonthly}"></div>
+    <hr style="margin:12px 0;border:none;border-top:1px solid #f0e6e0">
+    <p style="font-size:0.8rem;color:#888;margin-bottom:8px">Minimum monthly payments per loan (from MOHELA):</p>`;
+  for (const l of LOANS) {
+    html += `<div class="setting-row"><label>${l.name} (${l.rate}%)</label><input type="text" class="minInput" data-lid="${l.id}" value="${l.minMo}"></div>`;
+  }
+  html += `<div style="margin-top:14px"><button class="btn btn-primary" id="applySettings">Apply Changes</button></div>
+  </div>`;
+
   document.getElementById('app').innerHTML = html;
 
   /* ── Event Listeners ── */
-
-  // Settings toggle
-  document.getElementById('settingsToggle').addEventListener('click', () => {
-    const body = document.getElementById('settingsBody');
-    body.classList.toggle('open');
-  });
 
   // Apply settings
   document.getElementById('applySettings').addEventListener('click', () => {
@@ -542,6 +551,7 @@ function render() {
     CFG.k401Pct = v(document.getElementById('cfgK401').value);
     CFG.carMonthly = v(document.getElementById('cfgCar').value);
     CFG.spendMonthly = v(document.getElementById('cfgSpend').value);
+    CFG.autoPayMonthly = v(document.getElementById('cfgAutoPay').value);
     document.querySelectorAll('.minInput').forEach(inp => {
       const lid = parseInt(inp.dataset.lid);
       const loan = LOANS.find(l => l.id === lid);
