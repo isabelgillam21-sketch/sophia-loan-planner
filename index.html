@@ -121,7 +121,7 @@ const CFG = {
   k401Pct:      0,
   carMonthly:   400,
   spendMonthly: 800,
-  autoPayMonthly: 1100,
+  autoPayMonthly: 1000.46,
   startDate:    '2026-03-01',
   payInterval:  14,
 };
@@ -133,8 +133,8 @@ const LOANS = [
   { id:3, name:'1-03 Direct Unsub',  rate:5.280, bal:13409.78, minMo:145.86 },
   { id:4, name:'1-04 Direct Unsub',  rate:6.540, bal:23259.34, minMo:267.65 },
   { id:5, name:'1-05 Direct Unsub',  rate:7.050, bal:23185.66, minMo:270.40 },
-  { id:6, name:'1-07 Grad PLUS',     rate:8.050, bal:6951.64,  minMo:0      },
-  { id:7, name:'1-09 Grad PLUS',     rate:8.050, bal:6999.28,  minMo:0      },
+  { id:6, name:'1-07 Grad PLUS',     rate:8.050, bal:6951.64,  minMo:97.79  },
+  { id:7, name:'1-09 Grad PLUS',     rate:8.050, bal:6999.28,  minMo:97.81  },
 ];
 
 /* ══════════════════ TAX HELPERS ══════════════════ */
@@ -466,50 +466,54 @@ function render() {
   }
   html += `</div>`;
 
-  // Payment Schedule Table
-  html += `<div class="card"><h2>Payment Schedule</h2>
-    <p style="font-size:0.8rem;color:#888;margin-bottom:10px">Check off each period as you make your payment. All payments go to MOHELA.</p>
+  // Payment Schedule — only shows what Sophia needs to MANUALLY do
+  const minsPer = LOANS.map(l => l.minMo * 12 / 26);
+
+  html += `<div class="card"><h2>Your Payment Schedule</h2>
+    <p style="font-size:0.85rem;color:#555;margin-bottom:4px"><strong>Your auto-pay of ${$(CFG.autoPayMonthly)}/month already handles the minimums.</strong></p>
+    <p style="font-size:0.85rem;color:#555;margin-bottom:10px">This table ONLY shows the <strong>extra</strong> you need to manually pay on top of that. Check each one off after you do it.</p>
     <div class="table-wrap"><table>
     <thead><tr>
-      <th>Paid</th><th>#</th><th>Date</th><th>Pay to MOHELA</th><th>Remaining</th>
+      <th>Done</th><th>#</th><th>Date</th><th>Extra to Pay</th><th>Send To</th><th>Balance Left</th>
     </tr></thead><tbody>`;
 
   for (const row of schedule) {
     const isP = !!paid[row.period];
+    // Calculate extra beyond auto-pay minimums for this period
+    let extraTotal = 0;
+    let targetName = '';
+    for (let i = 0; i < LOANS.length; i++) {
+      const extra = Math.max(0, row.payments[i] - minsPer[i]);
+      if (extra > 0.01) {
+        extraTotal += extra;
+        if (!targetName) targetName = LOANS[i].name;
+      }
+    }
+    // When a loan gets paid off and its minimum drops, extra might spread — show primary target
     html += `<tr class="${isP ? 'row-paid' : ''}" data-period="${row.period}">
       <td><input type="checkbox" class="paidChk" data-p="${row.period}" ${isP ? 'checked' : ''}></td>
       <td>${row.period}</td>
       <td style="text-align:left">${fmtDateShort(row.date)}</td>
-      <td><strong>${$(row.total)}</strong></td>
+      <td><strong>${extraTotal > 0.50 ? $(extraTotal) : '—'}</strong></td>
+      <td style="text-align:left;font-size:0.75rem">${extraTotal > 0.50 ? targetName : '—'}</td>
       <td>${$(row.remaining)}</td>
     </tr>`;
   }
 
   html += `</tbody></table></div></div>`;
 
-  // Detailed Breakdown Table
-  html += `<div class="card"><h2>Detailed Breakdown</h2>
-    <p style="font-size:0.8rem;color:#888;margin-bottom:10px">How much goes to each loan per period.</p>
-    <div class="table-wrap"><table>
-    <thead><tr>
-      <th>Paid</th><th>#</th><th>Date</th>`;
-  for (const l of LOANS) html += `<th>${l.name.split(' ')[0]}</th>`;
-  html += `<th>Total</th></tr></thead><tbody>`;
-
-  for (const row of schedule) {
-    const isP = !!paid[row.period];
-    html += `<tr class="${isP ? 'row-paid' : ''}" data-det-period="${row.period}">
-      <td><input type="checkbox" class="paidChkDet" data-p="${row.period}" ${isP ? 'checked' : ''}></td>
-      <td>${row.period}</td>
-      <td style="text-align:left">${fmtDateShort(row.date)}</td>`;
-    for (let i = 0; i < LOANS.length; i++) {
-      const val = row.payments[i];
-      html += `<td>${val > 0.005 ? $(val) : '—'}</td>`;
-    }
-    html += `<td><strong>${$(row.total)}</strong></td></tr>`;
+  // Auto-Pay Reference — what the auto-pay covers
+  html += `<div class="card"><h2>What Your Auto-Pay Covers</h2>
+    <p style="font-size:0.85rem;color:#555;margin-bottom:10px">This is already set up and happens automatically every month. You don't need to do anything for these.</p>`;
+  for (const l of LOANS) {
+    html += `<div class="loan-row">
+      <div><div class="loan-name">${l.name}</div><div class="loan-meta">${l.rate}%</div></div>
+      <div style="font-weight:600;color:#27ae60">${$(l.minMo)}/mo</div>
+    </div>`;
   }
-
-  html += `</tbody></table></div></div>`;
+  html += `<div style="display:flex;justify-content:space-between;padding:12px 0;border-top:2px solid #e0e0e0;margin-top:4px;font-weight:700">
+    <span>Total Auto-Pay</span><span style="color:#27ae60">${$(CFG.autoPayMonthly)}/mo</span>
+  </div></div>`;
 
   // Tax Breakdown
   html += `<div class="card"><h2>Tax Breakdown (Annual)</h2>
@@ -563,21 +567,8 @@ function render() {
   // Download calendar
   document.getElementById('dlCalBtn').addEventListener('click', () => downloadICS(schedule));
 
-  // Payment tracker checkboxes (main table)
+  // Payment tracker checkboxes
   document.querySelectorAll('.paidChk').forEach(chk => {
-    chk.addEventListener('change', e => {
-      const p = e.target.dataset.p;
-      const data = loadPaidPeriods();
-      if (e.target.checked) data[p] = true;
-      else delete data[p];
-      savePaidPeriods(data);
-      // Sync both tables
-      applyTrackerState();
-    });
-  });
-
-  // Payment tracker checkboxes (detail table)
-  document.querySelectorAll('.paidChkDet').forEach(chk => {
     chk.addEventListener('change', e => {
       const p = e.target.dataset.p;
       const data = loadPaidPeriods();
@@ -594,17 +585,7 @@ function render() {
 function applyTrackerState() {
   const data = loadPaidPeriods();
 
-  // Main schedule table
   document.querySelectorAll('.paidChk').forEach(chk => {
-    const p = chk.dataset.p;
-    const isP = !!data[p];
-    chk.checked = isP;
-    const row = chk.closest('tr');
-    row.classList.toggle('row-paid', isP);
-  });
-
-  // Detail table
-  document.querySelectorAll('.paidChkDet').forEach(chk => {
     const p = chk.dataset.p;
     const isP = !!data[p];
     chk.checked = isP;
