@@ -528,34 +528,43 @@ function render() {
     <div class="setting-row"><label><strong>Bi-Weekly Take-Home</strong></label><span class="computed" style="font-size:1.1rem">${$(take.biweekly)}</span></div>
   </div>`;
 
-  // Settings (always visible, at the bottom)
-  html += `<div class="card"><h2>Your Info (edit if anything changes)</h2>
-    <p style="font-size:0.85rem;color:#888;margin-bottom:12px">If you get a raise, start a 401K, or your credit card bill changes, update these numbers and hit "Apply Changes" to recalculate everything.</p>
+  // Your Info section
+  html += `<div class="card"><h2>Your Info (update when things change)</h2>
+    <p style="font-size:0.85rem;color:#888;margin-bottom:12px">Update your credit card bill each month, or if you get a raise / start a 401K, change it here and hit "Apply Changes."</p>
     <div class="setting-row"><label>Annual Salary</label><input type="text" id="cfgSalary" value="${CFG.salary}"></div>
     <div class="setting-row"><label>401K % (0 if you don't have one yet)</label><input type="text" id="cfgK401" value="${CFG.k401Pct}"></div>
     <div class="setting-row"><label>Car Payment (monthly)</label><input type="text" id="cfgCar" value="${CFG.carMonthly}"></div>
     <div class="setting-row"><label>Credit Card Statement (monthly)</label><input type="text" id="cfgSpend" value="${CFG.spendMonthly}"></div>
     <div class="setting-row"><label>Auto-Pay Amount (monthly)</label><input type="text" id="cfgAutoPay" value="${CFG.autoPayMonthly}"></div>
-    <hr style="margin:12px 0;border:none;border-top:1px solid #f0e6e0">
-    <p style="font-size:0.8rem;color:#888;margin-bottom:8px">Minimum monthly payments per loan (from MOHELA):</p>`;
+    <div style="margin-top:14px"><button class="btn btn-primary" id="applyInfo">Apply Changes</button></div>
+  </div>`;
+
+  // Loan Minimums section (separate)
+  html += `<div class="card"><h2>Loan Minimum Payments</h2>
+    <p style="font-size:0.85rem;color:#888;margin-bottom:12px">These are your monthly minimums from MOHELA. You probably won't need to change these unless MOHELA updates them.</p>`;
   for (const l of LOANS) {
     html += `<div class="setting-row"><label>${l.name} (${l.rate}%)</label><input type="text" class="minInput" data-lid="${l.id}" value="${l.minMo}"></div>`;
   }
-  html += `<div style="margin-top:14px"><button class="btn btn-primary" id="applySettings">Apply Changes</button></div>
+  html += `<div style="margin-top:14px"><button class="btn btn-secondary" id="applyMins">Apply Changes</button></div>
   </div>`;
 
   document.getElementById('app').innerHTML = html;
 
   /* ── Event Listeners ── */
 
-  // Apply settings
-  document.getElementById('applySettings').addEventListener('click', () => {
-    const v = s => parseFloat(s.replace(/[^0-9.\-]/g, '')) || 0;
+  // Apply info settings
+  const v = s => parseFloat(s.replace(/[^0-9.\-]/g, '')) || 0;
+  document.getElementById('applyInfo').addEventListener('click', () => {
     CFG.salary = v(document.getElementById('cfgSalary').value);
     CFG.k401Pct = v(document.getElementById('cfgK401').value);
     CFG.carMonthly = v(document.getElementById('cfgCar').value);
     CFG.spendMonthly = v(document.getElementById('cfgSpend').value);
     CFG.autoPayMonthly = v(document.getElementById('cfgAutoPay').value);
+    render();
+  });
+
+  // Apply loan minimums
+  document.getElementById('applyMins').addEventListener('click', () => {
     document.querySelectorAll('.minInput').forEach(inp => {
       const lid = parseInt(inp.dataset.lid);
       const loan = LOANS.find(l => l.id === lid);
